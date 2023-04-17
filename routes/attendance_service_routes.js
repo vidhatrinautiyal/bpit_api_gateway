@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router()
 const axios = require('axios')
+const multer = require("multer");
+const upload = multer();
 const { GetServerURL, GetErrorResponse, BuildHeaders } = require('../utils')
 
 const ATTENDANCE_SERVICE_PREFIX = '/attendance_service'
@@ -19,11 +21,13 @@ router.get('*', (req, res) => {
         })
 })
 
-router.post('*', (req, res) => {
+router.post('*', upload.single("file"), (req, res) => {
     const service_url = GetServerURL(ATTENDANCE_SERVICE_PORT, ATTENDANCE_SERVICE_PREFIX, req.url)
     const config = {
         headers: BuildHeaders(req.headers)
     }
+    const body = { ...req.body, "file": req.file }
+    console.log(body, req.file, req.body)
     axios.post(service_url, req.body, config)
         .then(response => {
             res.json(response.data)
