@@ -34,7 +34,7 @@ router.post('*', upload.single("file"), (req, res) => {
     }
 
     if (req.file !== undefined) {
-        body.append("file", req.file)
+        body.append("file", req.file.buffer, req.file.originalname)
     }
 
     axios.post(service_url, body, config)
