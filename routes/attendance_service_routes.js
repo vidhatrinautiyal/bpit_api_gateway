@@ -26,9 +26,19 @@ router.post('*', upload.single("file"), (req, res) => {
     const config = {
         headers: BuildHeaders(req.headers)
     }
-    const body = { ...req.body, "file": req.file }
-    console.log(body, req.file, req.body)
-    axios.post(service_url, req.body, config)
+    // const body = { ...req.body, "file": req.file }
+    // console.log(body, req.file, req.body)
+    const body = new FormData
+    for (let key in req.body) {
+        body.append(key, req.body[key])
+    }
+
+    if (req.file !== undefined) {
+        body.append("file", req.file)
+    }
+
+    axios.post(service_url, body, config)
+        // axios.post(service_url, req.body, config)
         .then(response => {
             res.json(response.data)
         })
