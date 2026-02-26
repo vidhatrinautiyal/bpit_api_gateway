@@ -1,22 +1,33 @@
-const express = require('express');
-const path = require('path')
-const app = express();
-const attendance_service_router = require('./routes/attendance_service_routes')
-var cors = require('cors');
+const express = require("express")
+const path = require("path")
+const cors = require("cors")
+require("dotenv").config()
 
+const attendanceServiceRouter = require("./routes/attendance_service_routes")
+const authRouter = require("./routes/auth")
+const { auth } = require("./middlewares/auth")
+
+const app = express()
 const PORT = 3000
 
-app.use(express.json())
-app.use(express.static('build'));
+// Auth Routes
+app.use("/auth", authRouter)
+
+// Middlewares
 app.use(cors())
+app.use(express.json())
+app.use(auth)
+// app.use(express.static("build))
 
-app.use("/attendance_service", attendance_service_router)
 
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, "..", "build", "index.html"));
+// Service Routes
+app.use("/attendance_service", attendanceServiceRouter)
+
+// React root
+app.get("/", (req, res) => {
+    res.sendFile(path.join(__dirname, "..", "build", "index.html"))
 })
 
-
 app.listen(PORT, () => {
-    console.log("app listening on port:", PORT)
+    console.log("App listening on port:", PORT)
 })
