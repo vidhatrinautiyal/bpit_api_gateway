@@ -1,21 +1,63 @@
+const { User } = require("../../db/users");
+
 async function findUserByOid(oid) {
-    // DB lookup later
-    return null
+    const user = await User.findOne({
+        where: { username: oid }
+    });
+
+    return user ? user.toJSON() : null;
 }
 
 async function createUser(userData) {
-    // DB insert later
-    return { id: "123", ...userData }
+
+    const existingUser = await User.findOne({
+        where: { username: userData.username }
+    });
+
+    if (existingUser) {
+        return existingUser.toJSON();
+    }
+
+    const user = await User.create({
+        username: userData.username,
+        role: userData.role || "STUDENT",
+        lastLoggedIn: new Date()
+    });
+
+    return user.toJSON();
 }
 
 async function getUserRoles(userId) {
-    // Fetch roles from DB later
-    return ["student"]
+    const user = await User.findOne({
+        where: { username: userId }
+    });
+    if (!user) return [];
+
+    return [user.role.toLowerCase()];
 }
 
 async function getPermissionsFromRoles(roles) {
-    // Map roles → permissions
-    return ["view_profile"]
+
+    const rolePermissions = {
+        admin: [
+            "view_users",
+            "edit_users",
+            "delete_users",
+            "view_profile"
+        ],
+        student: [
+            "view_profile",
+        ]
+    };
+
+    const permissions = new Set();
+
+    roles.forEach(role => {
+        const perms = rolePermissions[role] || [];
+        perms.forEach(p => permissions.add(p));
+    });
+
+    return Array.from(permissions);
 }
 
 module.exports = {
@@ -23,4 +65,4 @@ module.exports = {
     createUser,
     getUserRoles,
     getPermissionsFromRoles
-}
+};
