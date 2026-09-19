@@ -4,6 +4,19 @@ An Express gateway that puts **common authentication**, **role-based access cont
 
 ---
 
+## Project history
+
+Started as a group project at BPIT with an initial auth/attendance-service scaffold from teammates. From there, I (Vidhatri Nautiyal) designed and built out the majority of the system:
+
+- The full role-based access control layer (permission matrix, guards, safeguards against admin lockout)
+- The scalable user/role/permission schema, migrations, and seeding (`db/`)
+- The academic module — curriculum modeling, enrolment, per-section timetables, and class-segregated attendance (`routes/academic.js`, `services/academic/`, `data/`)
+- The attendance module and downstream service proxy (`routes/attendance.js`, `services/attendance/`)
+- The browser dashboard (`public/`)
+- The Postman collection and the 49-check end-to-end smoke test suite (`scripts/smoke-test.js`)
+
+---
+
 ## Quick start
 
 ```bash
