@@ -1,0 +1,768 @@
+{
+  "info": {
+    "name": "BPIT API Gateway",
+    "description": "Auth (JWT + Microsoft SSO), RBAC/permissions, attendance, timetable/academic, and gateway-proxy tests. Run top-to-bottom with the 'BPIT Local' environment selected. Requires: npm start (server on :3000) and a seeded database (npm run seed / npm run demo:accounts).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "00 - Health",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/health"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200 and database connected', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().database).to.eql('connected');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 - Registration",
+      "item": [
+        {
+          "name": "Register - new student (random)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"demo_{{$timestamp}}\",\n  \"email\": \"demo_{{$timestamp}}@example.com\",\n  \"password\": \"Demo@1234\",\n  \"name\": \"Demo Presenter\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/register"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 created, defaults to STUDENT', () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  pm.expect(pm.response.json().user.roles).to.include('STUDENT');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register - duplicate username (expect 409)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"student1\",\n  \"email\": \"someone-else@example.com\",\n  \"password\": \"Whatever@123\",\n  \"name\": \"Someone Else\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/register"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('409 username already taken', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register - weak password (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"demo_{{$timestamp}}\",\n  \"email\": \"demo_{{$timestamp}}@example.com\",\n  \"password\": \"abc\",\n  \"name\": \"Demo Presenter\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/register"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('400 password too weak', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register - throwaway user (for admin demo later)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"throwaway_{{$timestamp}}\",\n  \"email\": \"throwaway_{{$timestamp}}@example.com\",\n  \"password\": \"Demo@1234\",\n  \"name\": \"Throwaway User\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/register"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const throwawayData = pm.response.json();",
+                  "pm.test('201 created', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('throwawayUserId', throwawayData.user.id);",
+                  "pm.environment.set('throwawayUsername', throwawayData.user.username);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - Login & Session",
+      "item": [
+        {
+          "name": "Login - Student (student1)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"student1\",\n  \"password\": \"Student@123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const studentLoginData = pm.response.json();",
+                  "pm.test('200 login successful', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('studentToken', studentLoginData.token);",
+                  "pm.environment.set('studentId', studentLoginData.user.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Teacher (demo_teacher)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"demo_teacher\",\n  \"password\": \"Teacher@123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const teacherLoginData = pm.response.json();",
+                  "pm.test('200 login successful', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('teacherToken', teacherLoginData.token);",
+                  "pm.environment.set('teacherId', teacherLoginData.user.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Admin (demo_admin)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"demo_admin\",\n  \"password\": \"Admin@123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const adminLoginData = pm.response.json();",
+                  "pm.test('200 login successful', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('adminToken', adminLoginData.token);",
+                  "pm.environment.set('adminId', adminLoginData.user.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - wrong password (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"student1\",\n  \"password\": \"WrongPassword1\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('401 invalid credentials', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Microsoft SSO - not configured (expect 503)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"dummy-token\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/microsoft"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('503 microsoft login not configured', () => pm.response.to.have.status(503));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get current user - no token (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('401 missing token', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get current user - invalid token (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer not-a-real-token" }],
+            "url": "{{baseUrl}}/auth/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('401 invalid token', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get current user - Student",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{studentToken}}" }],
+            "url": "{{baseUrl}}/auth/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 profile with roles/permissions', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().user.permissions).to.include('view_attendance');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 - Academic (Timetable / Subjects / Enrolment)",
+      "item": [
+        {
+          "name": "Class catalogue (meta)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{studentToken}}" }],
+            "url": "{{baseUrl}}/api/academic/meta"
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('200 catalogue', () => pm.response.to.have.status(200));"] } }
+          ]
+        },
+        {
+          "name": "Enrol - student self-enrols in CSE-A",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{studentToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"branch\": \"CSE\",\n  \"section\": \"A\",\n  \"semester\": 1,\n  \"year\": 1,\n  \"batch\": \"G1\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/academic/enrol"
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('200 enrolment saved', () => pm.response.to.have.status(200));"] } }
+          ]
+        },
+        {
+          "name": "Timetable - student sees own class",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{studentToken}}" }],
+            "url": "{{baseUrl}}/api/academic/timetable"
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('200 timetable', () => pm.response.to.have.status(200));"] } }
+          ]
+        },
+        {
+          "name": "Subjects - student's branch",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{studentToken}}" }],
+            "url": "{{baseUrl}}/api/academic/subjects"
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('200 subjects', () => pm.response.to.have.status(200));"] } }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 - Attendance (RBAC in action)",
+      "item": [
+        {
+          "name": "Student - view own attendance (before marking)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{studentToken}}" }],
+            "url": "{{baseUrl}}/api/attendance"
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('200 own records', () => pm.response.to.have.status(200));"] } }
+          ]
+        },
+        {
+          "name": "Student - try to mark attendance (expect 403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{studentToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": {{studentId}},\n  \"subjectCode\": \"PPS\",\n  \"date\": \"2026-09-10\",\n  \"status\": \"PRESENT\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/attendance"
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('403 missing manage_attendance', () => pm.response.to.have.status(403));"] } }
+          ]
+        },
+        {
+          "name": "Teacher - mark attendance PRESENT (expect 201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{teacherToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": {{studentId}},\n  \"subjectCode\": \"PPS\",\n  \"date\": \"2026-09-10\",\n  \"status\": \"PRESENT\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/attendance"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 marked', () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  pm.expect(pm.response.json().record.status).to.eql('PRESENT');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Teacher - re-mark same day as LATE (updates in place)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{teacherToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": {{studentId}},\n  \"subjectCode\": \"PPS\",\n  \"date\": \"2026-09-10\",\n  \"status\": \"LATE\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/attendance"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 same record updated, not duplicated', () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  pm.expect(pm.response.json().record.status).to.eql('LATE');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Student - view own attendance (after marking)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{studentToken}}" }],
+            "url": "{{baseUrl}}/api/attendance"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 and record now visible', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().records.length).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Student - try to view teacher's records (expect 403)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{studentToken}}" }],
+            "url": "{{baseUrl}}/api/attendance?userId={{teacherId}}"
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('403 out of scope', () => pm.response.to.have.status(403));"] } }
+          ]
+        },
+        {
+          "name": "Student - own attendance summary",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{studentToken}}" }],
+            "url": "{{baseUrl}}/api/academic/attendance/summary"
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('200 summary', () => pm.response.to.have.status(200));"] } }
+          ]
+        },
+        {
+          "name": "Teacher - view a specific student's summary",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{teacherToken}}" }],
+            "url": "{{baseUrl}}/api/academic/attendance/summary?userId={{studentId}}"
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('200 teacher can view any student', () => pm.response.to.have.status(200));"] } }
+          ]
+        },
+        {
+          "name": "Teacher - class roster (CSE-A)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{teacherToken}}" }],
+            "url": "{{baseUrl}}/api/academic/attendance/class?branch=CSE&section=A"
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('200 class roster', () => pm.response.to.have.status(200));"] } }
+          ]
+        },
+        {
+          "name": "Student - try to open class roster (expect 403)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{studentToken}}" }],
+            "url": "{{baseUrl}}/api/academic/attendance/class?branch=CSE&section=A"
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('403 needs view_all_attendance', () => pm.response.to.have.status(403));"] } }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 - Admin (Users & Roles)",
+      "item": [
+        {
+          "name": "Admin - list users",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/auth/users"
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('200 user list', () => pm.response.to.have.status(200));"] } }
+          ]
+        },
+        {
+          "name": "Teacher - list users (allowed: has view_users)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{teacherToken}}" }],
+            "url": "{{baseUrl}}/auth/users"
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('200 teacher also has view_users', () => pm.response.to.have.status(200));"] } }
+          ]
+        },
+        {
+          "name": "Student - list users (expect 403)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{studentToken}}" }],
+            "url": "{{baseUrl}}/auth/users"
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('403 student lacks view_users', () => pm.response.to.have.status(403));"] } }
+          ]
+        },
+        {
+          "name": "Admin - role/permission matrix",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/auth/roles"
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('200 roles with permissions', () => pm.response.to.have.status(200));"] } }
+          ]
+        },
+        {
+          "name": "Admin - assign TEACHER role to throwaway user",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"TEACHER\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/users/{{throwawayUserId}}/roles"
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('200 role assigned', () => pm.response.to.have.status(200));"] } }
+          ]
+        },
+        {
+          "name": "Admin - try to change own role (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"STUDENT\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/users/{{adminId}}/roles"
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('400 cannot change own role', () => pm.response.to.have.status(400));"] } }
+          ]
+        },
+        {
+          "name": "Admin - deactivate throwaway user",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isActive\": false\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/users/{{throwawayUserId}}/status"
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('200 deactivated', () => pm.response.to.have.status(200));"] } }
+          ]
+        },
+        {
+          "name": "Login - deactivated throwaway user (expect 403)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"{{throwawayUsername}}\",\n  \"password\": \"Demo@1234\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/login"
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('403 account deactivated', () => pm.response.to.have.status(403));"] } }
+          ]
+        },
+        {
+          "name": "Admin - reactivate throwaway user",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isActive\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/users/{{throwawayUserId}}/status"
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('200 reactivated', () => pm.response.to.have.status(200));"] } }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06 - Gateway Proxy & Error Handling",
+      "item": [
+        {
+          "name": "Proxy - no token (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/attendance_service/anything"
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('401 gateway requires auth', () => pm.response.to.have.status(401));"] } }
+          ]
+        },
+        {
+          "name": "Proxy - unreachable upstream (expect 502)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{studentToken}}" }],
+            "url": "{{baseUrl}}/attendance_service/anything"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('502 when downstream attendance service is down', () => pm.response.to.have.status(502));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unknown route (expect 404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/this/route/does/not/exist"
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('404 not found', () => pm.response.to.have.status(404));"] } }
+          ]
+        },
+        {
+          "name": "Malformed JSON body (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{ this is not valid json",
+              "options": { "raw": { "language": "text" } }
+            },
+            "url": "{{baseUrl}}/auth/login"
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('400 malformed JSON', () => pm.response.to.have.status(400));"] } }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "07 - Cleanup",
+      "item": [
+        {
+          "name": "Admin - delete throwaway user",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/auth/users/{{throwawayUserId}}"
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('200 user deleted', () => pm.response.to.have.status(200));"] } }
+          ]
+        }
+      ]
+    }
+  ]
+}

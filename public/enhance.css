@@ -1,0 +1,307 @@
+/* ============================================================
+   BPIT Gateway — presentation layer
+   Purely additive: loaded after styles.css / attendance.css /
+   theme.css, and only adds new classes + hover/motion rules.
+   Nothing here overrides base layout, so removing this file
+   changes the feel but never breaks the app.
+   ============================================================ */
+
+/* ---- Ambient background drift ---- */
+@keyframes bgDrift {
+  0%, 100% { background-position: 0% 0%, 100% 100%; }
+  50%      { background-position: 6% 4%, 94% 96%; }
+}
+.app-shell {
+  /* Rosewood + antique gold: the same duo used for the primary accent and
+     identity chrome, kept deliberately faint so it reads as texture. */
+  background-image:
+    radial-gradient(circle at 78% 8%, rgba(168, 90, 108, .07), transparent 30%),
+    radial-gradient(circle at 8% 92%, rgba(201, 151, 79, .06), transparent 35%);
+  background-size: 140% 140%, 140% 140%;
+  animation: bgDrift 28s ease-in-out infinite;
+}
+
+/* ---- View entrance ---- */
+.view-enter { animation: viewIn .4s cubic-bezier(.2, .8, .2, 1); }
+@keyframes viewIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ---- Hover lift for cards & interactive controls ---- */
+.metric-card, .panel, .schema-card, .demo-role, .about-block {
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.metric-card:hover, .panel:hover, .schema-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 20px 45px rgba(107, 66, 45, .16);
+}
+.demo-role { transition: transform .15s ease, border-color .15s ease, background-color .15s ease; }
+.demo-role:hover { transform: translateY(-2px); }
+
+.button { transition: transform .12s ease, box-shadow .12s ease, background-color .15s ease; }
+.button:hover { transform: translateY(-1px); }
+.button:active { transform: translateY(0) scale(.97); }
+
+.nav-item { position: relative; transition: background-color .15s ease, color .15s ease, padding-left .15s ease; }
+.nav-item.active { padding-left: 16px; }
+.nav-item.active::before {
+  content: "";
+  position: absolute; left: 2px; top: 9px; bottom: 9px; width: 3px;
+  background: var(--teal); border-radius: 2px;
+}
+
+.link-button { transition: color .15s ease, transform .1s ease; }
+.link-button:active { transform: scale(.96); }
+
+/* ---- Live status dot ---- */
+.status-dot { position: relative; transition: background-color .3s ease; }
+.status-dot.live::after {
+  content: "";
+  position: absolute; inset: -4px; border-radius: 50%;
+  border: 2px solid currentColor; opacity: .55;
+  animation: pulseRing 1.9s ease-out infinite;
+}
+@keyframes pulseRing {
+  0%   { transform: scale(.55); opacity: .6; }
+  100% { transform: scale(2); opacity: 0; }
+}
+.status-dot.offline { background: var(--coral) !important; color: var(--coral) !important; }
+.status-dot.offline::after { border-color: var(--coral); }
+
+/* ---- Pin the sidebar to the viewport ----
+   The base layout stretches .sidebar to match .main-content's height (flex
+   default align-items: stretch), so on any page taller than one screen the
+   footer — and now the user chip below it — end up scrolled out of view.
+   Making the sidebar its own sticky, independently-scrolling column keeps
+   navigation and the status/user chip always on screen, which is how a
+   dashboard sidebar is expected to behave. */
+.sidebar {
+  position: sticky; top: 0; align-self: flex-start;
+  height: 100vh; overflow-y: auto;
+}
+
+/* ---- Sidebar user chip ---- */
+.sidebar-user {
+  display: flex; gap: 10px; align-items: center; margin-top: 12px;
+  padding: 10px; border-radius: 8px;
+  background: rgba(168, 90, 108, .06); border: 1px solid rgba(168, 90, 108, .18);
+}
+.sidebar-user-avatar {
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+  display: grid; place-items: center; font-weight: 800; font-size: 12px;
+  color: #2c1f18; background: linear-gradient(135deg, var(--gold), var(--teal));
+}
+.sidebar-user strong, .sidebar-user span { display: block; }
+.sidebar-user strong { font-size: 12px; }
+.sidebar-user span { font-size: 9px; color: var(--muted); letter-spacing: .07em; text-transform: uppercase; margin-top: 2px; }
+
+/* ---- Live clock ---- */
+.live-clock {
+  font-size: 11px; color: var(--muted); letter-spacing: .05em;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
+/* ---- Inline messages read as toasts ---- */
+.message { position: relative; padding-left: 32px !important; animation: toastIn .25s ease; }
+.message::before {
+  content: "✓"; position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  font-size: 12px; font-weight: 800;
+}
+.message.error::before { content: "!"; }
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ---- Progress ring (subject / roster percentage) ---- */
+.progress-ring { display: inline-flex; align-items: center; gap: 7px; vertical-align: middle; }
+.progress-ring svg { display: block; flex-shrink: 0; }
+.progress-ring-value { font-size: 12px; font-weight: 800; letter-spacing: -.01em; }
+
+/* ---- Skeleton shimmer while data loads ---- */
+.skeleton-row {
+  height: 38px; border-radius: 6px; margin: 8px 0;
+  background: linear-gradient(90deg, rgba(60, 42, 34, .04) 25%, rgba(60, 42, 34, .10) 37%, rgba(60, 42, 34, .04) 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.3s ease infinite;
+}
+@keyframes shimmer {
+  0%   { background-position: 100% 0; }
+  100% { background-position: 0 0; }
+}
+
+/* ---- Timetable: current-period highlight ---- */
+.tt-cell.tt-now {
+  outline: 2px solid var(--teal); outline-offset: 1px;
+  box-shadow: 0 0 0 5px rgba(168, 90, 108, .16);
+  animation: nowGlow 2.4s ease-in-out infinite;
+}
+@keyframes nowGlow {
+  0%, 100% { box-shadow: 0 0 0 5px rgba(168, 90, 108, .16); }
+  50%      { box-shadow: 0 0 0 8px rgba(168, 90, 108, .05); }
+}
+.tt-now-chip {
+  position: absolute; top: -8px; right: -6px;
+  background: var(--teal); color: #fffbf6;
+  font-size: 8px; font-weight: 900; letter-spacing: .05em;
+  padding: 2px 5px; border-radius: 3px; box-shadow: 0 2px 6px rgba(0, 0, 0, .4);
+}
+.tt-day.tt-today { color: var(--teal) !important; }
+
+/* ---- Demo role icon ---- */
+.demo-role .role-icon { font-size: 15px; margin-right: 2px; }
+
+/* ---- Landing hero, staggered reveal ---- */
+.auth-copy .kicker, .auth-copy h2, .auth-copy .auth-subtitle, .auth-signal-row {
+  animation: heroRise .55s cubic-bezier(.2, .8, .2, 1) both;
+}
+.auth-copy h2 { animation-delay: .05s; }
+.auth-copy .auth-subtitle { animation-delay: .12s; }
+.auth-signal-row { animation-delay: .18s; }
+@keyframes heroRise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+.auth-signal-row span { transition: border-color .2s ease, color .2s ease, transform .2s ease; }
+.auth-signal-row span:hover { border-color: var(--teal); color: var(--teal); transform: translateY(-1px); }
+
+/* ---- Smooth theme transition ---- */
+body, .app-shell, .auth-card, .metric-card, .panel, .schema-card,
+.form-panel input, .form-row input, .form-row select, .message,
+.role-badge, .tag, .secure-icon, .admin-badge, code, .chart-track {
+  transition: background-color .25s ease, color .25s ease, border-color .25s ease;
+}
+
+/* ---- Theme toggle switch ---- */
+.theme-toggle {
+  position: relative; display: inline-flex; align-items: center; justify-content: space-between;
+  width: 52px; height: 26px; padding: 0 6px; flex-shrink: 0;
+  border-radius: 999px; border: 1px solid var(--line); background: var(--white);
+  transition: background-color .2s ease, border-color .2s ease;
+}
+.theme-toggle:hover { border-color: var(--teal); }
+.theme-toggle:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.theme-toggle-icon {
+  font-size: 10px; line-height: 1; z-index: 1; color: var(--muted);
+  transition: opacity .2s ease;
+}
+.theme-toggle.is-dark .theme-toggle-icon-light { opacity: .3; }
+.theme-toggle:not(.is-dark) .theme-toggle-icon-dark { opacity: .3; }
+.theme-toggle-thumb {
+  position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%;
+  background: var(--gold); box-shadow: 0 2px 6px rgba(0, 0, 0, .25);
+  transition: transform .25s cubic-bezier(.2, .8, .2, 1), background-color .2s ease;
+}
+.theme-toggle.is-dark .theme-toggle-thumb { transform: translateX(26px); background: var(--teal); }
+
+/* ============================================================
+   Dark mode
+   Toggled via [data-theme="dark"] on <html> (set by an inline
+   anti-flash script in <head>, flipped at runtime by app.js).
+   Redefining the shared custom properties re-themes every
+   component that already reads them (cards, buttons, badges,
+   status colors, shadows). A short list of literal (non-var)
+   colors from styles.css/theme.css/attendance.css is overridden
+   explicitly below so nothing is left glowing white.
+   ============================================================ */
+:root[data-theme="dark"] {
+  --ink: #f1e6da;
+  --muted: #b39f8c;
+  --line: #43332a;
+  --paper: #17110d;
+  --white: #241a15;
+  --teal: #cf8298;
+  --teal-dark: #b76579;
+  --coral: #d9835a;
+  --blue: #ab8b70;
+  --gold: #dba85e;
+  --sage: #86a869;
+  --ochre: #cfa53f;
+  --shadow: 0 18px 45px rgba(0, 0, 0, .5);
+}
+[data-theme="dark"] body,
+[data-theme="dark"] .app-shell {
+  background-color: #17110d;
+}
+[data-theme="dark"] .app-shell {
+  background-image:
+    radial-gradient(circle at 78% 8%, rgba(207, 130, 152, .10), transparent 30%),
+    radial-gradient(circle at 8% 92%, rgba(219, 168, 94, .08), transparent 35%);
+}
+[data-theme="dark"] .form-panel input,
+[data-theme="dark"] .form-row input,
+[data-theme="dark"] .form-row select {
+  background: #1e1611;
+}
+[data-theme="dark"] .form-panel label,
+[data-theme="dark"] .form-row label {
+  color: #d8c4b2;
+}
+[data-theme="dark"] code {
+  background: #2a2019;
+  color: var(--ink);
+}
+[data-theme="dark"] .role-badge,
+[data-theme="dark"] .secure-icon,
+[data-theme="dark"] .tag {
+  background: rgba(207, 130, 152, .16);
+}
+[data-theme="dark"] .admin-badge {
+  background: rgba(217, 131, 90, .16);
+  color: var(--coral);
+}
+[data-theme="dark"] .message {
+  background: rgba(134, 168, 105, .14);
+  color: var(--sage);
+}
+[data-theme="dark"] .message.error {
+  background: rgba(217, 131, 90, .16);
+  color: var(--coral);
+}
+[data-theme="dark"] .status-present {
+  background: rgba(134, 168, 105, .16);
+}
+[data-theme="dark"] .status-absent {
+  background: rgba(217, 131, 90, .16);
+}
+[data-theme="dark"] .status-late {
+  background: rgba(207, 165, 63, .16);
+}
+[data-theme="dark"] .demo-role.active {
+  background: rgba(207, 130, 152, .12);
+}
+[data-theme="dark"] .chart-track {
+  background: #332720;
+}
+[data-theme="dark"] .button-primary {
+  color: var(--white);
+}
+[data-theme="dark"] .tt-now-chip {
+  color: var(--white);
+}
+[data-theme="dark"] .tt-theory { background: rgba(134, 168, 105, .14); }
+[data-theme="dark"] .tt-lab { background: rgba(207, 130, 152, .16); }
+[data-theme="dark"] .tt-library { background: rgba(219, 168, 94, .16); }
+[data-theme="dark"] .tt-enrichment { background: rgba(171, 139, 112, .16); }
+[data-theme="dark"] .skeleton-row {
+  background: linear-gradient(90deg, rgba(255, 255, 255, .05) 25%, rgba(255, 255, 255, .13) 37%, rgba(255, 255, 255, .05) 63%);
+  background-size: 400% 100%;
+}
+[data-theme="dark"] .metric-card:hover,
+[data-theme="dark"] .panel:hover,
+[data-theme="dark"] .schema-card:hover {
+  box-shadow: 0 20px 45px rgba(0, 0, 0, .45);
+}
+[data-theme="dark"] .metric-card {
+  box-shadow: 0 5px 20px rgba(0, 0, 0, .3);
+}
+
+/* ---- Accessibility: respect reduced-motion ---- */
+@media (prefers-reduced-motion: reduce) {
+  .app-shell, .view-enter, .status-dot.live::after, .message,
+  .skeleton-row, .tt-cell.tt-now, .auth-copy .kicker, .auth-copy h2,
+  .auth-copy .auth-subtitle, .auth-signal-row {
+    animation: none !important;
+  }
+}

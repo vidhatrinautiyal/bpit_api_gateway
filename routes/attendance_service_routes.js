@@ -1,95 +1,45 @@
 const express = require('express');
 const router = express.Router()
 const axios = require('axios')
-// const multer = require("multer");
-// const upload = multer();
+const config = require('../config')
 const { GetServerURL, GetErrorResponse, BuildHeaders } = require('../utils')
-const { Blob } = require("buffer");
 
 const ATTENDANCE_SERVICE_PREFIX = '/attendance_service'
-const ATTENDANCE_SERVICE_PORT = '8000'
+const REQUEST_TIMEOUT_MS = 15000
 
-router.get('*', (req, res) => {
-    const service_url = GetServerURL(ATTENDANCE_SERVICE_PORT, ATTENDANCE_SERVICE_PREFIX, req.url)
-    axios.get(service_url, {
-        headers: req.headers
-    })
-        .then(response => {
-            res.json(response.data)
-        })
-        .catch(err => {
-            res.status(err.response.status).json(GetErrorResponse(err))
-        })
-})
+function forward(method) {
+    return async (req, res) => {
+        const service_url = GetServerURL(
+            config.attendanceService.host,
+            config.attendanceService.port,
+            ATTENDANCE_SERVICE_PREFIX,
+            req.originalUrl
+        )
 
-router.post('*', (req, res) => {
-    // router.post('*', upload.single("file"), (req, res) => {
-    const service_url = GetServerURL(ATTENDANCE_SERVICE_PORT, ATTENDANCE_SERVICE_PREFIX, req.url)
-    const config = {
-        headers: BuildHeaders(req.headers)
+        try {
+            const response = await axios({
+                method,
+                url: service_url,
+                headers: BuildHeaders(req.headers),
+                data: ["get", "delete"].includes(method) ? undefined : req.body,
+                params: undefined,
+                timeout: REQUEST_TIMEOUT_MS,
+                validateStatus: () => true
+            })
+
+            return res.status(response.status).json(response.data)
+        } catch (err) {
+            const { status, body } = GetErrorResponse(err)
+            console.error(`Proxy ${method.toUpperCase()} ${service_url} failed:`, err.code || err.message)
+            return res.status(status).json(body)
+        }
     }
-    // const body = { ...req.body, "file": req.file }
-    // console.log(body, req.file, req.body)
-    // const body = new FormData()
-    // for (let key in req.body) {
-    //     body.append(key, req.body[key])
-    // }
+}
 
-    // if (req.file !== undefined) {
-    //     const blob = new Blob(req.body.buffer)
-    //     body.append("file", req.file.buffer, req.file.originalname)
-    // }
-
-    // axios.post(service_url, body, config)
-    axios.post(service_url, req.body, config)
-        .then(response => {
-            res.json(response.data)
-        })
-        .catch(err => {
-            res.status(err.response.status || 500).send(GetErrorResponse(err))
-        })
-})
-
-router.put('*', (req, res) => {
-    const service_url = GetServerURL(ATTENDANCE_SERVICE_PORT, ATTENDANCE_SERVICE_PREFIX, req.url)
-    const config = {
-        headers: BuildHeaders(req.headers)
-    }
-    axios.put(service_url, req.body, config)
-        .then(response => {
-            res.json(response.data)
-        })
-        .catch(err => {
-            res.status(err.response.status || 500).send(GetErrorResponse(err))
-        })
-})
-
-router.patch('*', (req, res) => {
-    const service_url = GetServerURL(ATTENDANCE_SERVICE_PORT, ATTENDANCE_SERVICE_PREFIX, req.url)
-    const config = {
-        headers: BuildHeaders(req.headers)
-    }
-    axios.patch(service_url, req.body, config)
-        .then(response => {
-            res.json(response.data)
-        })
-        .catch(err => {
-            res.status(err.response.status || 500).send(GetErrorResponse(err))
-        })
-})
-
-router.delete('*', (req, res) => {
-    const service_url = GetServerURL(ATTENDANCE_SERVICE_PORT, ATTENDANCE_SERVICE_PREFIX, req.url)
-    const config = {
-        headers: BuildHeaders(req.headers)
-    }
-    axios.delete(service_url, req.body, config)
-        .then(response => {
-            res.json(response.data)
-        })
-        .catch(err => {
-            res.status(err.response.status || 500).send(GetErrorResponse(err))
-        })
-})
+router.get('*', forward('get'))
+router.post('*', forward('post'))
+router.put('*', forward('put'))
+router.patch('*', forward('patch'))
+router.delete('*', forward('delete'))
 
 module.exports = router

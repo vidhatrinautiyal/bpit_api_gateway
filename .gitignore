@@ -145,3 +145,12 @@ dist
 .svelte-kit
 
 # End of https://www.toptal.com/developers/gitignore/api/node
+
+# Generated reports / build scratch (not source)
+/tmp/
+/output/
+Summer_Training_Report.doc
+Summer_Training_Report.pdf
+dfd_level0.png
+dfd_level1.png
+er_diagram.png

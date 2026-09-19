@@ -1,89 +1,142 @@
-const {
-    createRemoteJWKSet,
-    jwtVerify,
-    SignJWT
-} = require("jose")
+const { createRemoteJWKSet, jwtVerify, SignJWT } = require("jose")
+const config = require("../config")
+
+const JWT_SECRET = new TextEncoder().encode(config.jwt.secret)
+const TOKEN_ISSUER = "bpit-api-gateway"
+
+let microsoftJWKS
 
 // ==============================
-// ENV CONFIG
+// Microsoft SSO (optional)
 // ==============================
-const TENANT_ID = process.env.TENANT_ID
-const MICROSOFT_CLIENT_ID = process.env.MICROSOFT_CLIENT_ID
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET)
+function isMicrosoftAuthConfigured() {
+    return Boolean(config.microsoft.tenantId && config.microsoft.clientId)
+}
 
-// ==============================
-// Microsoft JWKS (auto cached)
-// ==============================
-const JWKS = createRemoteJWKSet(
-    new URL(
-        `https://login.microsoftonline.com/${TENANT_ID}/discovery/v2.0/keys`
-    )
-)
+function getMicrosoftJWKS() {
+    if (!microsoftJWKS) {
+        microsoftJWKS = createRemoteJWKSet(
+            new URL(`https://login.microsoftonline.com/${config.microsoft.tenantId}/discovery/v2.0/keys`)
+        )
+    }
+    return microsoftJWKS
+}
 
-// ==============================
-// Verify Microsoft Token
-// ==============================
 async function verifyMicrosoftToken(token) {
-    const { payload } = await jwtVerify(token, JWKS, {
-        issuer: `https://login.microsoftonline.com/${TENANT_ID}/v2.0`,
-        audience: MICROSOFT_CLIENT_ID
+    if (!isMicrosoftAuthConfigured()) {
+        throw new Error("Microsoft authentication is not configured")
+    }
+
+    const { payload } = await jwtVerify(token, getMicrosoftJWKS(), {
+        issuer: `https://login.microsoftonline.com/${config.microsoft.tenantId}/v2.0`,
+        audience: config.microsoft.clientId
     })
 
     return payload
 }
 
 // ==============================
-// Create Your Own JWT
+// Gateway token
 // ==============================
+/**
+ * Every login path — local password or Microsoft SSO — ends here, so the rest
+ * of the gateway only ever deals with one token format.
+ */
 async function createAppToken(user, roles, permissions) {
     return await new SignJWT({
-        sub: user.id,
+        id: user.id,
+        username: user.username,
+        email: user.email,
         roles,
         permissions
     })
         .setProtectedHeader({ alg: "HS256" })
+        .setSubject(String(user.id))
+        .setIssuer(TOKEN_ISSUER)
         .setIssuedAt()
-        .setExpirationTime("30m")
+        .setExpirationTime(config.jwt.expiresIn)
         .sign(JWT_SECRET)
 }
 
-// ==============================
-// Auth Middleware
-// ==============================
-async function auth(req, res, next) {
-    try {
-        const header = req.headers.authorization
-        if (!header) return res.status(401).json({ error: "No token" })
-
-        const token = header.split(" ")[1]
-
-        const { payload } = await jwtVerify(token, JWT_SECRET)
-
-        req.user = payload
-        next()
-    } catch (err) {
-        return res.status(401).json({ error: "Invalid or expired token" })
-    }
+function extractBearerToken(req) {
+    const header = req.headers.authorization
+    if (!header) return null
+    const [scheme, token] = header.split(" ")
+    if (scheme !== "Bearer" || !token) return null
+    return token
 }
 
 // ==============================
-// Permission Middleware
+// Authentication
 // ==============================
-function requirePermission(permission) {
+async function auth(req, res, next) {
+    const token = extractBearerToken(req)
+    if (!token) {
+        return res.status(401).json({ error: "Missing or malformed Authorization header" })
+    }
+
+    let payload
+    try {
+        ({ payload } = await jwtVerify(token, JWT_SECRET, { issuer: TOKEN_ISSUER }))
+    } catch {
+        return res.status(401).json({ error: "Invalid or expired token" })
+    }
+
+    try {
+        // A token stays valid until it expires, so check the account is still
+        // enabled on every request — otherwise deactivating a user does nothing
+        // until their token runs out.
+        const { User } = require("../db/models")
+        const user = await User.findByPk(payload.id || payload.sub, { attributes: ["id", "isActive"] })
+        if (!user) return res.status(401).json({ error: "Account no longer exists" })
+        if (!user.isActive) return res.status(403).json({ error: "Account is deactivated" })
+    } catch (err) {
+        console.error("Auth lookup failed:", err.message)
+        return res.status(503).json({ error: "Authentication backend unavailable" })
+    }
+
+    req.user = { ...payload, id: Number(payload.id || payload.sub) }
+    next()
+}
+
+// ==============================
+// Authorization
+// ==============================
+function requirePermission(...permissions) {
+    const required = permissions.flat()
     return (req, res, next) => {
-        if (!req.user?.permissions?.includes(permission)) {
-            return res.status(403).json({ error: "Forbidden" })
+        const held = req.user?.permissions || []
+        const missing = required.filter(p => !held.includes(p))
+        if (missing.length > 0) {
+            return res.status(403).json({
+                error: "Forbidden: missing permission",
+                required: missing
+            })
         }
         next()
     }
 }
 
-// ==============================
-// EXPORTS
-// ==============================
+function requireRole(roles) {
+    const required = (Array.isArray(roles) ? roles : [roles]).map(r => r.toUpperCase())
+    return (req, res, next) => {
+        const held = (req.user?.roles || []).map(r => r.toUpperCase())
+        if (!held.some(r => required.includes(r))) {
+            return res.status(403).json({
+                error: "Forbidden: insufficient privileges",
+                required
+            })
+        }
+        next()
+    }
+}
+
 module.exports = {
+    isMicrosoftAuthConfigured,
     verifyMicrosoftToken,
     createAppToken,
     auth,
-    requirePermission
+    requirePermission,
+    requireRole,
+    TOKEN_ISSUER
 }

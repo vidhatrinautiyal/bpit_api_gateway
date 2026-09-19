@@ -1,30 +1,8 @@
-const { DataTypes } = require("sequelize");
-const { sequelize } = require("./connect");
-const User = sequelize.define("users", {
-    id: {
-        type: DataTypes.INTEGER,
-        autoIncrement: true,
-        primaryKey: true
-    },
+/**
+ * Backward-compatible entry point. The models now live in db/models/ and the
+ * seeding logic in db/seed.js; this file keeps the original import path working.
+ */
+const models = require("./models");
+const { seedDatabase } = require("./seed");
 
-    username: {
-        type: DataTypes.STRING,
-        allowNull: false,
-        unique: true
-    },
-
-    role: {
-        type: DataTypes.ENUM("ADMIN", "STUDENT"),
-        defaultValue: "STUDENT"
-    },
-
-    lastLoggedIn: {
-        type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW
-    }
-
-}, {
-    timestamps: true
-});
-
-module.exports = { User };
+module.exports = { ...models, seedDatabase };

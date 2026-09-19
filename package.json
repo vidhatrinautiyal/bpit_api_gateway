@@ -1,10 +1,14 @@
 {
   "name": "bpit_api_gateway",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "BPIT API Gateway with common authentication, role-based access control, and a scalable user schema.",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "seed": "node scripts/seed.js",
+    "demo:accounts": "node scripts/create-demo-accounts.js",
+    "test": "node scripts/smoke-test.js"
   },
   "keywords": [],
   "author": "",

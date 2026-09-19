@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BPIT Gateway | Access Console</title>
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("bpit-theme");
+        var mode = saved || (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", mode);
+      } catch (e) {}
+    })();
+  </script>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/attendance.css">
+  <link rel="stylesheet" href="/theme.css">
+  <link rel="stylesheet" href="/enhance.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">B</div>
+        <div>
+          <strong>BPIT / GATEWAY</strong>
+          <span>Attendance intelligence</span>
+        </div>
+      </div>
+      <div class="sidebar-label">Workspace</div>
+      <nav>
+        <button class="nav-item active" data-view="overview"><span class="nav-icon">⌂</span>Overview</button>
+        <button class="nav-item" data-view="identity"><span class="nav-icon">◎</span>Identity</button>
+        <button class="nav-item" data-view="attendance"><span class="nav-icon">▦</span>Attendance</button>
+        <button class="nav-item class-nav hidden" data-view="timetable"><span class="nav-icon">◷</span>Timetable</button>
+        <button class="nav-item" data-view="about"><span class="nav-icon">↗</span>About</button>
+        <button class="nav-item admin-nav hidden" data-view="access"><span class="nav-icon">◆</span>Access control</button>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="status-dot app-status-dot" id="health-dot"></div>
+        <div><strong id="health-text">Checking API…</strong><span>localhost:3000</span></div>
+      </div>
+      <div id="sidebar-user" class="sidebar-user hidden">
+        <div class="sidebar-user-avatar" id="sidebar-avatar">U</div>
+        <div><strong id="sidebar-user-name">—</strong><span id="sidebar-user-role">—</span></div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">BPIT API GATEWAY / 2026</p>
+          <h1 id="page-title">Overview</h1>
+        </div>
+        <div class="topbar-actions">
+          <button id="theme-toggle" class="theme-toggle" type="button" aria-pressed="false" aria-label="Switch to dark mode" title="Switch to dark mode">
+            <span class="theme-toggle-icon theme-toggle-icon-light">☀</span>
+            <span class="theme-toggle-thumb"></span>
+            <span class="theme-toggle-icon theme-toggle-icon-dark">☾</span>
+          </button>
+          <span id="live-clock" class="live-clock"></span>
+          <span class="connection-pill"><span class="status-dot app-status-dot"></span><span id="connection-text">LOCAL / ONLINE</span></span>
+          <button id="logout-button" class="button button-ghost hidden">Sign out</button>
+        </div>
+      </header>
+
+      <section id="auth-view" class="auth-view">
+        <div class="auth-copy">
+          <span class="kicker">BPIT SUMMER TRAINING PROJECT</span>
+          <h2>BPIT API Gateway</h2>
+          <p class="auth-subtitle">Secure access and attendance intelligence for students, teachers, and administrators.</p>
+          <div class="auth-signal-row"><span>JWT AUTH</span><span>RBAC</span><span>MYSQL</span></div>
+        </div>
+        <div class="auth-card">
+          <div class="auth-tabs"><button class="auth-tab active" data-auth="login">Sign in</button><button class="auth-tab" data-auth="register">Create account</button></div>
+          <div id="login-form" class="form-panel">
+            <h3>Sign in</h3><p class="muted">Choose a demo identity or enter credentials.</p>
+            <div class="demo-roles"><button class="demo-role active" data-demo-role="student"><span>01</span><strong><span class="role-icon">🎓</span>Student</strong><small>Vidhatri Nautiyal · CSE-A</small></button><button class="demo-role" data-demo-role="teacher"><span>02</span><strong><span class="role-icon">🧑‍🏫</span>Teacher</strong><small>Demo Faculty</small></button><button class="demo-role" data-demo-role="admin"><span>03</span><strong><span class="role-icon">🛡️</span>Admin</strong><small>demo_admin</small></button></div>
+            <label>Username or email<input id="login-name" type="text" placeholder="vidhatri.nautiyal001@bpitindia.edu.in"></label>
+            <label>Password<input id="login-password" type="password" placeholder="••••••••"></label>
+            <button id="login-submit" class="button button-primary full-width">Sign in <span>→</span></button>
+          </div>
+          <div id="register-form" class="form-panel hidden">
+            <h3>Create an account</h3><p class="muted">New accounts start with the STUDENT role.</p>
+            <label>Full name<input id="register-name" type="text" placeholder="Student One"></label>
+            <label>Username<input id="register-username" type="text" placeholder="vidhatri.nautiyal001@bpitindia.edu.in"></label>
+            <label>Email<input id="register-email" type="email" placeholder="student1@example.com"></label>
+            <label>Password<input id="register-password" type="password" placeholder="8+ characters, letters and numbers"></label>
+            <button id="register-submit" class="button button-primary full-width">Create account <span>→</span></button>
+          </div>
+          <div id="auth-message" class="message hidden"></div>
+        </div>
+      </section>
+
+      <section id="dashboard-view" class="dashboard-view hidden">
+        <div class="welcome-row"><div><span class="kicker">AUTHENTICATED SESSION</span><h2>Welcome, <span id="welcome-name">User</span>.</h2><p class="muted">A live view of identity, access, and attendance.</p></div><div id="hero-role" class="role-badge">STUDENT</div></div>
+        <div class="metric-grid">
+          <article class="metric-card accent-teal"><span class="metric-label">IDENTITY STATUS</span><strong>Verified</strong><small>JWT accepted by middleware</small></article>
+          <article class="metric-card accent-coral"><span class="metric-label">ACTIVE ROLES</span><strong id="role-count">0</strong><small id="role-summary">No roles loaded</small></article>
+          <article class="metric-card accent-blue"><span class="metric-label">PERMISSIONS</span><strong id="permission-count">0</strong><small>Resolved from assigned roles</small></article>
+        </div>
+        <div class="content-grid">
+          <article class="panel identity-panel"><div class="panel-heading"><div><span class="kicker">IDENTITY</span><h3>Profile details</h3></div><span class="secure-icon">✓</span></div><div class="profile-line"><div class="avatar" id="avatar">U</div><div><strong id="profile-name">User</strong><span id="profile-email">email@example.com</span></div></div><div class="detail-list"><div><span>Username</span><strong id="profile-username">—</strong></div><div><span>Last sign in</span><strong id="profile-last-login">—</strong></div></div></article>
+          <article class="panel permission-panel"><div class="panel-heading"><div><span class="kicker">AUTHORIZATION</span><h3>Permission set</h3></div><span class="permission-count" id="permission-count-small">0</span></div><div id="permission-list" class="tag-list"></div><div id="permission-empty" class="empty-state">No permissions assigned.</div></article>
+        </div>
+        <div class="panel chart-panel"><div class="panel-heading"><div><span class="kicker">ATTENDANCE SIGNAL</span><h3>Weekly overview</h3></div><button class="button button-ghost" data-view="attendance">Open records →</button></div><div id="dashboard-chart" class="bar-chart"></div></div>
+      </section>
+
+      <section id="access-view" class="access-view hidden">
+        <div class="section-heading"><div><span class="kicker">ROLE-BASED ACCESS</span><h2>Access control</h2><p class="muted">The directory needs <code>view_users</code>; changing roles or accounts needs <code>edit_users</code> or <code>delete_users</code>.</p></div><div class="role-badge admin-badge" id="access-scope">PRIVILEGED</div></div>
+        <div class="panel users-panel"><div class="panel-heading"><div><span class="kicker">DIRECTORY</span><h3>Users</h3></div><button id="refresh-users" class="button button-ghost">Refresh</button></div><div id="users-table" class="attendance-table"></div><div id="users-empty" class="empty-state hidden">No users found.</div></div>
+        <div id="assign-role-panel" class="panel role-panel hidden"><h3>Assign a role</h3><p class="muted">Requires the <code>edit_users</code> permission. Assigning a role replaces any existing one.</p><div class="form-row"><label>User ID<input id="role-user-id" type="number" min="1" placeholder="2"></label><label>New role<select id="role-name"><option>STUDENT</option><option>TEACHER</option><option>ADMIN</option></select></label><button id="role-submit" class="button button-primary">Assign role →</button></div><div id="role-message" class="message hidden"></div></div>
+      </section>
+
+      <section id="identity-view" class="identity-view hidden"><div class="section-heading"><div><span class="kicker">SCALABLE SCHEMA</span><h2>Identity model</h2><p class="muted">A normalized structure keeps user identity separate from authorization rules.</p></div></div><div class="schema-grid"><div class="schema-card"><span class="schema-number">01</span><h3>Users</h3><p>Credentials, profile details, and login metadata.</p></div><div class="schema-card"><span class="schema-number">02</span><h3>Roles</h3><p>Reusable access groupings such as ADMIN, TEACHER, and STUDENT.</p></div><div class="schema-card"><span class="schema-number">03</span><h3>Permissions</h3><p>Fine-grained actions connected to roles through join tables.</p></div></div></section>
+      <section id="enrolment-view" class="enrolment-view hidden">
+        <div class="section-heading"><div><span class="kicker">ONE-TIME SETUP</span><h2>Confirm your class</h2><p class="muted">Your year, semester, branch and section decide which timetable and subjects you see.</p></div><div class="role-badge">ENROLMENT</div></div>
+        <div class="panel role-panel">
+          <div class="form-row enrolment-form">
+            <label>Year<select id="enrol-year"></select></label>
+            <label>Semester<select id="enrol-semester"></select></label>
+            <label>Branch<select id="enrol-branch"></select></label>
+            <label>Section<select id="enrol-section"></select></label>
+            <label>Lab batch<select id="enrol-batch"><option value="">Not sure</option><option>G1</option><option>G2</option></select></label>
+            <label>Enrolment number<input id="enrol-number" type="text" placeholder="e.g. 03510500126 (leave blank if unsure)"></label>
+          </div>
+          <button id="enrol-submit" class="button button-primary">Save and continue &rarr;</button>
+          <div id="enrol-message" class="message hidden"></div>
+        </div>
+      </section>
+
+      <section id="timetable-view" class="timetable-view hidden">
+        <div class="section-heading"><div><span class="kicker">WEEKLY SCHEDULE</span><h2>Timetable</h2><p class="muted" id="timetable-caption">Loading your class schedule.</p></div><div class="role-badge" id="timetable-badge">&mdash;</div></div>
+        <div id="timetable-picker" class="panel role-panel hidden">
+          <h3>Pick a class</h3><p class="muted">Teachers and administrators can open any first-year section.</p>
+          <div class="form-row"><label>Branch<select id="tt-branch"></select></label><label>Section<select id="tt-section"></select></label><label>Semester<select id="tt-semester"></select></label><button id="tt-load" class="button button-primary">Show timetable &rarr;</button></div>
+        </div>
+        <div class="panel"><div id="timetable-grid" class="timetable-grid"></div></div>
+        <div class="panel"><div class="panel-heading"><div><span class="kicker">SCHEME</span><h3>Subjects and faculty</h3></div></div><div id="subject-faculty" class="attendance-table"></div></div>
+      </section>
+
+      <section id="attendance-view" class="attendance-view hidden">
+        <div class="section-heading"><div><span class="kicker">LIVE SERVICE DEMO</span><h2>Attendance</h2><p class="muted" id="attendance-caption">Attendance is loaded through the authenticated gateway and stored in MySQL.</p></div><div class="role-badge" id="attendance-scope">MY RECORDS</div></div>
+
+        <div id="attendance-class-picker" class="panel role-panel hidden">
+          <h3>Choose a class</h3><p class="muted">Attendance is segregated by branch, section and semester.</p>
+          <div class="form-row"><label>Branch<select id="cls-branch"></select></label><label>Section<select id="cls-section"></select></label><label>Semester<select id="cls-semester"></select></label><label>Subject<select id="cls-subject"><option value="">All subjects</option></select></label><button id="cls-load" class="button button-primary">Load class &rarr;</button></div>
+        </div>
+
+        <div id="student-attendance" class="hidden">
+          <div class="attendance-summary"><article class="metric-card accent-teal"><span class="metric-label">CLASSES ATTENDED</span><strong id="present-count">0</strong><small>Present or late</small></article><article class="metric-card accent-coral"><span class="metric-label">ABSENT</span><strong id="absent-count">0</strong><small>Classes missed</small></article><article class="metric-card accent-blue"><span class="metric-label">OVERALL</span><strong id="attendance-rate">0%</strong><small id="attendance-shortfall">Based on all subjects</small></article></div>
+          <div class="panel"><div class="panel-heading"><div><span class="kicker">BY SUBJECT</span><h3>Subject-wise attendance</h3></div><button id="refresh-attendance" class="button button-ghost">Refresh</button></div><div id="subject-table" class="attendance-table"></div><div id="subject-empty" class="empty-state hidden">No attendance recorded yet.</div></div>
+          <div class="panel"><div class="panel-heading"><div><span class="kicker">RECORDS</span><h3>Recent classes</h3></div></div><div id="attendance-table" class="attendance-table"></div><div id="attendance-empty" class="empty-state hidden">No attendance records found.</div></div>
+        </div>
+
+        <div id="class-attendance" class="hidden">
+          <div class="attendance-summary"><article class="metric-card accent-teal"><span class="metric-label">CLASS STRENGTH</span><strong id="class-strength">0</strong><small id="class-label">&mdash;</small></article><article class="metric-card accent-blue"><span class="metric-label">CLASS AVERAGE</span><strong id="class-average">0%</strong><small>Across loaded records</small></article><article class="metric-card accent-coral"><span class="metric-label">BELOW 75%</span><strong id="class-at-risk">0</strong><small>Students short of the exam bar</small></article></div>
+          <div class="panel"><div class="panel-heading"><div><span class="kicker">ROSTER</span><h3 id="class-roster-title">Students</h3></div></div><div id="class-roster" class="attendance-table"></div><div id="class-empty" class="empty-state hidden">No students enrolled in this class yet.</div></div>
+        </div>
+
+        <div id="mark-attendance-panel" class="panel role-panel hidden">
+          <h3>Mark attendance</h3><p class="muted">Requires the <code>manage_attendance</code> permission. Re-marking the same student, subject and date updates the existing record.</p>
+          <div class="form-row attendance-form"><label>Student<select id="attendance-student-id"></select></label><label>Subject<select id="attendance-subject"></select></label><label>Date<input id="attendance-date" type="date"></label><label>Status<select id="attendance-status"><option>PRESENT</option><option>ABSENT</option><option>LATE</option></select></label><button id="mark-attendance" class="button button-primary">Save record &rarr;</button></div>
+          <div id="attendance-message" class="message hidden"></div>
+        </div>
+      </section>
+      <section id="about-view" class="about-view hidden"><div class="about-hero"><div><span class="kicker">07 / ABOUT THE BUILD</span><h2>One gateway.<br><em>Three levels of trust.</em></h2></div><p>BPIT API Gateway is a local attendance platform that puts authentication, role-based access, and service data behind one reliable entry point.</p></div><div class="about-grid"><article class="about-block"><span class="schema-number">OWNER</span><h3>Vidhatri Nautiyal</h3><p>Summer training project focused on building a practical, secure API foundation for campus workflows.</p></article><article class="about-block"><span class="schema-number">STACK</span><h3>Node / Express / MySQL</h3><p>JWT, Sequelize, native password hashing, and a vanilla browser interface.</p></article><article class="about-block"><span class="schema-number">MODEL</span><h3>User → Role → Permission</h3><p>Normalized join tables make the authorization model easy to extend.</p></article></div></section>
+    </main>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>
